@@ -9,14 +9,14 @@
 # - Unit height in pixels: 8 (update this as needed)
 # - Display width in pixels: 256 (update this as needed)
 # - Display height in pixels: 256 (update this as needed)
-# - Base Address for Display: 0x10008000 ($gp) #
+# - Base Address for Display: 0x10008000 ($gp) 
 # Which milestones have been reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 2 (choose the one the applies)
+# - Milestone 4-ish (choose the one the applies)
 #
 # Which approved features have been implemented for milestone 4?
 # (See the assignment handout
-# 1. (fill in the feature, if
+# 1. Increased difficulty as game progresses, blocks speed up
 # 2. (fill in the feature, if
 # 3. (fill in the feature, if
 # ... (add more if necessary)
@@ -37,7 +37,7 @@
 
 .data
 
-astroidscurrarr: .word  268468724 ,268469620, 268470260
+astroidscurrarr: .word  268468716 ,268469620, 268470256, 268470760
 astroidarrlength: .word 12 	#Is 3 elems, with size 4 bytes each so 12
 
 
@@ -56,7 +56,13 @@ main:
 	addi $s1, $zero, 128	#$s1 stores 128, useful constant
 	li $s2, 0x00ff00 	# $s2 stores the green colour code
 	la $s3, astroidscurrarr
-	li $s7, 0xff0000	#$s7 stores the red colour code
+	addi $a3, $zero, 0	#$a3 stores the count of number of astroids passed by
+	
+	
+	
+	sw $t9, 448($t0)
+	
+	addi $s7,$zero, 24
 	
 	jal initialize_objects
 	
@@ -66,6 +72,8 @@ main:
 
 	
 initialize_objects:
+
+
 	sw $t3, 0($t7)	#Displaying the current player position
 	sw $t3, 4($t7)
 	sw $t3, 8($t7)
@@ -80,9 +88,20 @@ initialize_objects:
 	sw $t3, 264($t7)
 	
 	
+	li $t9, 0xff0000 #Loads the colour red into the register
+	
+	sw $t9, 48($t0)
+	sw $t9, 52($t0)
+	sw $t9, 56($t0)
+	sw $t9, 60($t0)
+	sw $t9, 64($t0)
+	sw $t9, 68($t0)
+	sw $t9, 72($t0)
+	sw $t9, 76($t0)
+	
 	
 	#$t5 gets our value from the astroids array
-	addi $t6, $s3, 12	#$t6 sets our breakpoint for the loop
+	addi $t6, $s3, 16	#$t6 sets our breakpoint for the loop
 	add $s4, $s3, $zero 	#$s4 is our iterator
 	
 	addi $sp, $sp, -4		# save $ra on the stack
@@ -113,6 +132,8 @@ initializeLoop:
 	sw $s2, 256($t5)	#Sets the Unit at Arr[i] to be the colour green
 	sw $s2, 260($t5)	#Sets the Unit at Arr[i+4]  to be the colour green
 	sw $s2, 264($t5)
+	
+	
 	
 	addi $s4, $s4, 4	#Incrementing iterator
 	j initializeLoop
@@ -165,7 +186,7 @@ respond_to_d:
 
 respond_to_w:
 	sub $t8, $t7, $t0	#checking if you can move up by 1 unit
-	addi $t9, $zero, 124
+	addi $t9, $zero, 252
 	ble $t8, $t9, invalidMove
 	
 	sw $t4, 256($t7)	#Set the last row of player to be black
@@ -201,20 +222,103 @@ respond_to_s:
 
 invalidMove:
 	j mainloop
+	
+respond_to_p:
+	j resetScreenAndAstroids
+
+	
+resetScreenAndAstroids:
+	#$t5 gets our value from the astroids array
+	addi $t6, $s3, 16	#$t6 sets our breakpoint for the loop
+	add $s4, $s3, $zero 	#$s4 is our iterator
+	
+	jal resetAstroidsToOriginalLoop
+	jal setPlayerPositionToBlack
+	
+	li $v0, 32
+	li $a0, 600 # Wait 0.5 seconds (500 milliseconds) 
+	syscall
+	
+	j main
+
+	
+resetAstroidsToOriginalLoop:
+	beq $s4, $t6, endResetAstoidsToOriginal #checking for break condition
+	lw $t5, 0($s4) 			#$t5 = A[i]
+	
+	sw $t4, 0($t5)	#Sets the Unit at Arr[i] to be the colour green
+	sw $t4, 4($t5)	#Sets the Unit at Arr[i+4]  to be the colour green
+	sw $t4, 8($t5)
+	
+	sw $t4, 128($t5)	#Sets the Unit at Arr[i] to be the colour green
+	sw $t4, 132($t5)	#Sets the Unit at Arr[i+4]  to be the colour green
+	sw $t4, 136($t5)
+	
+	sw $t4, 256($t5)	#Sets the Unit at Arr[i] to be the colour green
+	sw $t4, 260($t5)	#Sets the Unit at Arr[i+4]  to be the colour green
+	sw $t4, 264($t5)
+	
+	
+	
+	li $v0, 42	#Gets a random number in range [0, 29], then stores it in $a0
+	li $a0, 0
+	li $a1, 29
+	syscall
+	
+	move $t5, $a0
+	#mflo $t5
+	mult $t5, $s1 #lo = k* 128
+	mflo $t5	#$t5 = k* 128
+	
+	addi $t5, $t5, 128	#$t5 = k* 128 + 128
+	addi $t5, $t5, 116	#$t5 = k* 128 + +128 116
+
+	add $t5, $t5, $t0	#$t5 = k* 128 + +128 116 + BASEPOS
+	
+	
+	sw $t5, 0($s4)	#Sets the new pixel position to be at the end
+	
+		
+	addi $s4, $s4, 4	#Incrementing iterator
+	j resetAstroidsToOriginalLoop
+
+
+endResetAstoidsToOriginal:
+	jr $ra
+
+
+setPlayerPositionToBlack:
+	sw $t4, 0($t7)	#Displaying the current player position
+	sw $t4, 4($t7)
+	sw $t4, 8($t7)
+	
+	sw $t4, 128($t7)	#Displaying the current player position
+	sw $t4, 132($t7)
+	sw $t4, 136($t7)
+	
+	
+	sw $t4, 256($t7)	#Displaying the current player position
+	sw $t4, 260($t7)
+	sw $t4, 264($t7)
+	
+	jr $ra
+	
 
 # Function for handling button presses
 buttonPressed:
 	lw $t8, 4($t1)
+
+	
 	beq $t8, 0x61, respond_to_a # ASCII code of 'a' is 0x61
 	beq $t8, 0x64, respond_to_d # ASCII code of 'd' is 0x64 
 	beq $t8, 0x77, respond_to_w # ASCII code of 'w' is 0x77 
 	beq $t8, 0x73, respond_to_s # ASCII code of 's' is 0x73 
-	
+	beq $t8, 0x70, respond_to_p # ASCII code of 'p' is 0x70
 	
 	
 updateAstroidPos:
 				#$t5 gets our value from the astroids array
-	addi $t6, $s3, 12	#$t6 sets our breakpoint for the loop
+	addi $t6, $s3, 16	#$t6 sets our breakpoint for the loop
 	add $s4, $s3, $zero 	#$s4 is our iterator
 
 	j astroidsLoop
@@ -272,24 +376,44 @@ astroidsLoop:
 	
 collision:
 
+	li $t9, 0xff0000 #Loads the colour red into the register
+	#sw $s7, 0($t7)	#Displaying the current player position
+	#sw $s7, 4($t7)
+	#sw $s7, 8($t7)
 	
-	sw $s7, 0($t7)	#Displaying the current player position
-	sw $s7, 4($t7)
-	sw $s7, 8($t7)
+	sw $t9, 0($t7)	#Displaying the current player position
+	sw $t9, 4($t7)
+	sw $t9, 8($t7)
 	
-	sw $s7, 128($t7)	#Displaying the current player position
-	sw $s7, 132($t7)
-	sw $s7, 136($t7)
+	#sw $s7, 128($t7)	#Displaying the current player position
+	#sw $s7, 132($t7)
+	#sw $s7, 136($t7)
+	
+	sw $t9, 128($t7)	#Displaying the current player position
+	sw $t9, 132($t7)
+	sw $t9, 136($t7)
 	
 	
-	sw $s7, 256($t7)	#Displaying the current player position
-	sw $s7, 260($t7)
-	sw $s7, 264($t7)
+	#sw $s7, 256($t7)	#Displaying the current player position
+	#sw $s7, 260($t7)
+	#sw $s7, 264($t7)
+	
+	sw $t9, 256($t7)	#Displaying the current player position
+	sw $t9, 260($t7)
+	sw $t9, 264($t7)
+	
+	
 	
 	li $v0, 32
 	li $a0, 200 # Wait 0.1 seconds (100 milliseconds) 
 	syscall
 	
+	add $t9,$t0, $s7
+	sw $t4, 52($t9)	#Set current health bar unit to black
+	sw $t4, 48($t9) #Set current health bar unit to black
+	
+	addi $s7, $s7, -8	#Decrease health counter by 8
+	blt $s7, $zero, end	#check if we player had ran out of health
 	
 	
 	move $s6, $zero
@@ -302,17 +426,20 @@ collision:
 atEdge:
 	li $v0, 42	#Gets a random number in range [0, 30], then stores it in $a0
 	li $a0, 0
-	li $a1, 30
+	li $a1, 29
 	syscall
 	
 	move $t5, $a0
 	#mflo $t5
 	mult $t5, $s1 #lo = k* 128
 	mflo $t5	#$t5 = k* 128
-	addi $t5, $t5, 116	#$t5 = k* 128 + 116
-	add $t5, $t5, $t0	#$t5 = k* 128 + 116 + BASEPOS
+	addi $t5, $t5, 128	#$t5 = k* 128 + +128 116
+	addi $t5, $t5, 116	#$t5 = k* 128 + +128 116
+
+	add $t5, $t5, $t0	#$t5 = k* 128 +128 + 116 + BASEPOS
 	
 	
+	addi $a3, $a3, 1	#Another astroid has either passed or been hit, update $a3
 	
 	
 	
@@ -329,7 +456,7 @@ atEdge:
 	sw $t4, 264($s5)
 	
 	
-	
+
 	
 	
 	
@@ -369,6 +496,43 @@ atEdge:
 
 endAstroidLoop:
 	jr $ra
+	
+
+
+pauseForABit:
+	addi $t9, $zero, 20
+	blt $a3, $t9, longDelay
+	addi $t9, $zero, 40
+	blt $a3, $t9, mediumDelay
+	addi $t9, $zero, 60
+	blt $a3, $t9, shortDelay
+	
+	j superShortDelay
+
+longDelay:
+	li $v0, 32
+	li $a0, 60 # Wait one second (1000 milliseconds) 
+	syscall
+	jr $ra
+mediumDelay:
+	li $v0, 32
+	li $a0, 45 # Wait one second (1000 milliseconds) 
+	syscall
+	jr $ra
+
+shortDelay:
+	li $v0, 32
+	li $a0, 30 # Wait one second (1000 milliseconds) 
+	syscall
+	jr $ra	
+	
+superShortDelay:
+	li $v0, 32
+	li $a0, 15 # Wait one second (1000 milliseconds) 
+	syscall
+	jr $ra
+	
+	
 
 mainloop:
 	lw $t8, 0($t1)
@@ -380,16 +544,100 @@ mainloop:
 	#jal refreshScreen
 	#jal refreshastroid
 	
-	li $v0, 32
-	li $a0, 15 # Wait one second (1000 milliseconds) 
-	syscall
+	#li $v0, 32
+	#li $a0, 50 # Wait one second (1000 milliseconds) 
+	#syscall
+	
+	jal pauseForABit
 	
 	j mainloop
 	
+
+displayEndScreen:
+		#$t5 gets our value from the astroids array
+	addi $t6, $t0, 1424	#$t6 sets our breakpoint for the loop
+	addi $s4, $t0, 400 	#$s4 is our iterator
+	li $t9, 0xc023db	#t9 stores our colour value
+		
+displayEndScreenLoop:
+	beq $s4, $t6, endDisplayEndScreenLoop
 	
+	sw $t9, 0($s4)
+	sw $t9, 4($s4)
+	sw $t9, 8($s4)
+	sw $t9, 12($s4)
+	sw $t9, 16($s4)
+	sw $t9, 20($s4)
+	sw $t9, 24($s4)
+	
+	
+	
+	
+	sw $t9, 60($s4)
+	sw $t9, 64($s4)
+	sw $t9, 68($s4)
+	sw $t9, 72($s4)
+	sw $t9, 76($s4)
+	sw $t9, 80($s4)
+	sw $t9, 84($s4)
+	
+	
+	addi $s4, $s4, 128
+	j displayEndScreenLoop
+	
+	
+endDisplayEndScreenLoop:
+	jr $ra
 
 
+displayFrownyFaceSides:
+	addi $t6, $t0, 3612	#$t6 sets our breakpoint for the loop
+	addi $s4, $t0, 1948 	#$s4 is our iterator
+	li $t9, 0xc023db	#t9 stores our colour value
+	j displayFrownyFaceSidesLoop
+	
+displayFrownyFaceSidesLoop:
+	beq $s4, $t6, endDisplayFrownyFaceSidesLoop
+	
+	sw $t9, 0($s4)
+	sw $t9, 4($s4)
+	
+	sw $t9, 56($s4)
+	sw $t9, 60($s4)
+	
+	addi $s4, $s4, 128
+	j displayFrownyFaceSidesLoop
+	
+endDisplayFrownyFaceSidesLoop:
+	jr $ra
+
+
+
+
+displayFrownyFaceTop:
+	addi $t6, $t0, 2012	#$t6 sets our breakpoint for the loop
+	addi $s4, $t0, 1956 	#$s4 is our iterator
+	li $t9, 0xc023db	#t9 stores our colour value
+	j displayFrownyFaceTopLoop
+	
+displayFrownyFaceTopLoop:
+	beq $s4, $t6, endDisplayFrownyFaceTopLoop
+	
+	sw $t9, 0($s4)
+	sw $t9, 128($s4)
+	
+	
+	addi $s4, $s4, 4
+	j displayFrownyFaceTopLoop
+	
+endDisplayFrownyFaceTopLoop:
+	jr $ra
+	
 end:
+
+	jal displayEndScreen
+	jal displayFrownyFaceTop
+	jal displayFrownyFaceSides
 	li $v0, 10		#Exiting the program
 	syscall
 
